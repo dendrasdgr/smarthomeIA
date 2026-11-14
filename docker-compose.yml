@@ -1,0 +1,63 @@
+#Home Assistant + IA local (Whisper, Piper, Ollama).
+#
+#Este ficheiro é a BASE e funciona sem GPU (tudo no CPU).
+#A GPU é acrescentada por um ficheiro extra, escolhido no .env através de COMPOSE_FILE:
+#   NVIDIA -> docker-compose.nvidia.yml
+#   AMD    -> docker-compose.amd.yml
+#   nenhuma-> só este ficheiro
+#Escolher com:  bash scripts/00-escolher-gpu.sh nvidia|amd|none
+#
+#O bloco "http:" (proxy do Tailscale) NÃO vai aqui: está em homeassistant/configuration.yaml.
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Atlantic/Madeira}
+    volumes:
+      - ./homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+
+  #Voz -> texto. Aqui corre no CPU; com NVIDIA o ficheiro nvidia troca-o para GPU.
+  whisper:
+    container_name: whisper
+    image: lscr.io/linuxserver/faster-whisper:latest
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Atlantic/Madeira}
+      - WHISPER_MODEL=${WHISPER_MODEL_CPU:-small-int8}
+      - WHISPER_LANG=${WHISPER_LANG:-pt}
+      - WHISPER_BEAM=${WHISPER_BEAM:-1}
+    volumes:
+      - ./whisper:/config
+    ports:
+      - "127.0.0.1:10300:10300"
+
+  #Texto -> voz
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    restart: unless-stopped
+    command: --voice ${PIPER_VOICE:-pt_PT-tugão-medium}
+    volumes:
+      - ./piper:/data
+    ports:
+      - "127.0.0.1:10200:10200"
+
+  #IA que percebe pedidos naturais. Aqui corre no CPU; os ficheiros nvidia/amd dão-lhe a GPU.
+  ollama:
+    container_name: ollama
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes:
+      - ./ollama:/root/.ollama
+    ports:
+      #Para outros PCs acederem: OLLAMA_BIND=0.0.0.0 no .env
+      - "${OLLAMA_BIND:-127.0.0.1}:11434:11434"

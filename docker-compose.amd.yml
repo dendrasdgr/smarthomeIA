@@ -1,0 +1,16 @@
+#Extra para placas AMD Radeon (ROCm). Usado quando
+#COMPOSE_FILE=docker-compose.yml:docker-compose.amd.yml (.env).
+#
+# - Só o Ollama usa a GPU. O Whisper (faster-whisper) NÃO tem suporte ROCm e corre no CPU.
+# - O PC precisa do driver ROCm v7 (scripts/01-drivers-amd.sh).
+# - Se a tua placa não estiver na lista oficial do Ollama, define HSA_OVERRIDE_GFX_VERSION
+#   no .env (ex.: 10.3.0 para RX 6600/6700), com o valor de uma placa parecida suportada.
+
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION

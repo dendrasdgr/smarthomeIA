@@ -1,0 +1,16 @@
+# Configuração base do Home Assistant.
+# Ficheiro montado em /config dentro do contentor (./homeassistant).
+
+default_config:
+
+# Necessário para o acesso por HTTPS via Tailscale (tailscale serve),
+# que chega ao Home Assistant através de 127.0.0.1.
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

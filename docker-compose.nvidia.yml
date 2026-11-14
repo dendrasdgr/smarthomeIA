@@ -1,0 +1,43 @@
+#Extra para placas NVIDIA (ex.: RTX 3060). Requer o NVIDIA Container Toolkit (scripts/03).
+#Usado automaticamente quando COMPOSE_FILE=docker-compose.yml:docker-compose.nvidia.yml (.env).
+
+services:
+  #Whisper passa para a GPU (porta 10300)
+  whisper:
+    image: lscr.io/linuxserver/faster-whisper:gpu
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL_GPU:-medium-int8}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  #Reserva no CPU (porta 10301) para quando a GPU não estiver disponível.
+  #Se não a quiseres, remove este bloco (e a integração na porta 10301).
+  whisper-cpu:
+    container_name: whisper-cpu
+    image: lscr.io/linuxserver/faster-whisper:latest
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Atlantic/Madeira}
+      - WHISPER_MODEL=${WHISPER_MODEL_CPU:-small-int8}
+      - WHISPER_LANG=${WHISPER_LANG:-pt}
+      - WHISPER_BEAM=${WHISPER_BEAM:-1}
+    volumes:
+      - ./whisper-cpu:/config
+    ports:
+      - "127.0.0.1:10301:10300"
+
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

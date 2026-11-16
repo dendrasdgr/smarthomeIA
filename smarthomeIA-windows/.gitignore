@@ -1,0 +1,24 @@
+#Segredos e configuração local
+.env
+homeassistant/secrets.yaml
+
+#Dados gerados pelos contentores
+whisper/
+whisper-cpu/
+piper/
+ollama/
+
+#Estado do Home Assistant (não versionar)
+homeassistant/.storage/
+homeassistant/.cloud/
+homeassistant/backups/
+homeassistant/custom_components/
+homeassistant/www/community/
+homeassistant/*.db
+homeassistant/*.db-*
+homeassistant/*.log*
+homeassistant/.HA_VERSION
+homeassistant/.uuid
+homeassistant/deps/
+homeassistant/tts/
+homeassistant/blueprints/

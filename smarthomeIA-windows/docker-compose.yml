@@ -1,0 +1,76 @@
+#Home Assistant + IA local (Whisper, Piper, Ollama) para WINDOWS (Docker Desktop + WSL2).
+#
+#Este ficheiro é a BASE e funciona sem GPU (tudo no CPU).
+#A GPU é acrescentada por um ficheiro extra, escolhido no .env através de COMPOSE_FILE
+#(no Windows o separador é ";"):
+#   NVIDIA -> docker-compose.nvidia.yml
+#   AMD    -> docker-compose.amd.yml  (o Ollama corre no Windows, fora do Docker)
+#   nenhuma-> só este ficheiro
+#Escolher com:  .\scripts\00-escolher-gpu.ps1 nvidia|amd|none
+#
+#Diferenças em relação à versão Linux:
+# - O Docker Desktop não suporta "network_mode: host" para chegar à rede do Windows, por isso o
+#   Home Assistant publica a porta 8123 e fala com os outros contentores pelo NOME do serviço
+#   (whisper, piper, ollama) em vez de 127.0.0.1.
+# - Sem /etc/localtime nem /run/dbus (não existem no Windows).
+# - Os dados pesados (modelos) ficam em volumes do Docker, que são muito mais rápidos que pastas do Windows.
+#
+#O bloco "http:" (proxy do Tailscale) NÃO vai aqui: está em homeassistant/configuration.yaml.
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Atlantic/Madeira}
+    volumes:
+      - ./homeassistant:/config
+    ports:
+      - "8123:8123"
+
+  #Voz -> texto. Aqui corre no CPU; com NVIDIA o ficheiro nvidia troca-o para GPU.
+  whisper:
+    container_name: whisper
+    image: lscr.io/linuxserver/faster-whisper:latest
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Atlantic/Madeira}
+      - WHISPER_MODEL=${WHISPER_MODEL_CPU:-small-int8}
+      - WHISPER_LANG=${WHISPER_LANG:-pt}
+      - WHISPER_BEAM=${WHISPER_BEAM:-1}
+    volumes:
+      - whisper_data:/config
+    ports:
+      - "127.0.0.1:10300:10300"
+
+  #Texto -> voz
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    restart: unless-stopped
+    command: --voice ${PIPER_VOICE:-pt_PT-tugão-medium}
+    volumes:
+      - piper_data:/data
+    ports:
+      - "127.0.0.1:10200:10200"
+
+  #IA que percebe pedidos naturais. Aqui corre no CPU; o ficheiro nvidia dá-lhe a GPU.
+  #Com AMD este serviço fica desativado (profile) e usa-se o Ollama nativo do Windows.
+  ollama:
+    container_name: ollama
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      #Para outros PCs acederem: OLLAMA_BIND=0.0.0.0 no .env
+      - "${OLLAMA_BIND:-127.0.0.1}:11434:11434"
+
+volumes:
+  whisper_data:
+  whisper_cpu_data:
+  piper_data:
+  ollama_data:

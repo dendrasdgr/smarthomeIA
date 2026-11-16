@@ -1,0 +1,12 @@
+#Extra para placas AMD Radeon no Windows.
+#
+#O ROCm não funciona dentro de contentores Docker no Windows. Por isso, com AMD:
+# - o Ollama NÃO corre em Docker: instala-se o Ollama para Windows (usa a placa AMD diretamente);
+# - o Whisper (faster-whisper) continua no CPU, como na versão Linux;
+# - o Home Assistant fala com o Ollama em http://host.docker.internal:11434
+#
+#O profile "externo" faz com que "docker compose up" ignore o serviço ollama.
+
+services:
+  ollama:
+    profiles: ["externo"]
